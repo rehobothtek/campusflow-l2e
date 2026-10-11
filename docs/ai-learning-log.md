@@ -21,3 +21,24 @@
 **Related file/commit:** Not yet applied to the CampusFlow code.
 
 **What I can now explain without AI:** Because deletion breaks `len()` but not `max()`.
+
+
+### Interaction #2 — Input normalization
+
+**Problem:** I needed to understand how the program can accept valid case variations while storing categories consistently.
+
+**My initial understanding:** I knew that `.lower()` and `.upper()` can change letter case, but I did not know what problems could happen if the program stored every variation exactly as the user typed it.
+
+**Prompt to AI:** I chose input normalization as my learning topic and asked how valid inputs such as `network`, `Network`, and `NETWORK` should be handled consistently.
+
+**Useful AI guidance:** Clean the input with `.strip()`, compare a lowercase version to valid choices, and store one consistent display version. This avoids inconsistent reports, filtering, and testing.
+
+**My independent experiment:** I used unrelated colour values. I tested the input `"  BlUe  "`, predicted that cleaning it and looking it up in an allowed-colours dictionary would output `Blue`, then ran the experiment.
+
+**Verification source or result:** I ran the temporary Python experiment in VS Code. The output was `Blue`, which matched my prediction.
+
+**Decision:** Accepted. CampusFlow will compare cleaned lowercase category input but store a consistent category value such as `Network`.
+
+**Related file/commit:** Not yet applied to the CampusFlow code.
+
+**What I can now explain without AI:** It uses a cleaned lowercase value to compare and validate what the user typed, but stores `Network` so saved data and reports always use the same consistent spelling.

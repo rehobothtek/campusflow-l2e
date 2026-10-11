@@ -24,7 +24,7 @@ def print_ticket(ticket):
 
 def create_new_ticket(tickets):
     title = input("Title: ")
-    category = input("Category (Network, Hardware, Software): ")
+    category = input("Category (Network, Hardware, Software, Other): ")
     urgency = input("Urgency (low, medium, high): ")
 
     try:

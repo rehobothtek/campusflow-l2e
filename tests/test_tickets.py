@@ -1,7 +1,13 @@
 import unittest
 
-from campusflow.tickets import calculate_priority, create_ticket
-
+from campusflow.tickets import (
+    assign_ticket,
+    build_ticket_report,
+    calculate_priority,
+    create_ticket,
+    get_work_queue,
+    update_ticket_status,
+)
 
 class CalculatePriorityTests(unittest.TestCase):
     def test_high_urgency_and_twelve_users_is_critical(self):
@@ -90,6 +96,212 @@ class CreateTicketTests(unittest.TestCase):
 
         self.assertEqual(ticket["id"], "T001")
 
+
+class AssignTicketTests(unittest.TestCase):
+    def setUp(self):
+        self.tickets = []
+        self.ticket = create_ticket(
+            self.tickets,
+            "Wi-Fi unavailable in library",
+            "Network",
+            "high",
+            12,
+        )
+
+    def test_assign_ticket_stores_cleaned_staff_name(self):
+        updated_ticket = assign_ticket(self.tickets, "T001", " Ada Lovelace ")
+
+        self.assertIs(updated_ticket, self.ticket)
+        self.assertEqual(updated_ticket["assigned_to"], "Ada Lovelace")
+        self.assertEqual(updated_ticket["status"], "open")
+
+    def test_blank_staff_name_is_rejected(self):
+        with self.assertRaises(ValueError):
+            assign_ticket(self.tickets, "T001", "   ")
+
+    def test_unknown_ticket_id_is_rejected(self):
+        with self.assertRaises(ValueError):
+            assign_ticket(self.tickets, "T999", "Ada Lovelace")
+
+
+class StatusWorkflowTests(unittest.TestCase):
+    def setUp(self):
+        self.tickets = []
+        self.ticket = create_ticket(
+            self.tickets,
+            "Projector will not turn on",
+            "Hardware",
+            "medium",
+            5,
+        )
+
+    def test_open_ticket_can_move_to_in_progress(self):
+        updated_ticket = update_ticket_status(
+            self.tickets,
+            "T001",
+            "in_progress",
+        )
+
+        self.assertIs(updated_ticket, self.ticket)
+        self.assertEqual(updated_ticket["status"], "in_progress")
+
+    def test_in_progress_ticket_can_move_to_resolved(self):
+        update_ticket_status(self.tickets, "T001", "in_progress")
+
+        updated_ticket = update_ticket_status(self.tickets, "T001", "resolved")
+
+        self.assertEqual(updated_ticket["status"], "resolved")
+
+    def test_resolved_ticket_can_move_to_closed(self):
+        update_ticket_status(self.tickets, "T001", "in_progress")
+        update_ticket_status(self.tickets, "T001", "resolved")
+
+        updated_ticket = update_ticket_status(self.tickets, "T001", "closed")
+
+        self.assertEqual(updated_ticket["status"], "closed")
+
+    def test_resolved_ticket_can_be_reopened(self):
+        update_ticket_status(self.tickets, "T001", "in_progress")
+        update_ticket_status(self.tickets, "T001", "resolved")
+
+        updated_ticket = update_ticket_status(
+            self.tickets,
+            "T001",
+            "in_progress",
+        )
+
+        self.assertEqual(updated_ticket["status"], "in_progress")
+
+    def test_open_ticket_cannot_skip_to_resolved(self):
+        with self.assertRaises(ValueError):
+            update_ticket_status(self.tickets, "T001", "resolved")
+
+    def test_closed_ticket_cannot_be_changed(self):
+        update_ticket_status(self.tickets, "T001", "in_progress")
+        update_ticket_status(self.tickets, "T001", "resolved")
+        update_ticket_status(self.tickets, "T001", "closed")
+
+        with self.assertRaises(ValueError):
+            update_ticket_status(self.tickets, "T001", "in_progress")
+
+    def test_invalid_status_is_rejected(self):
+        with self.assertRaises(ValueError):
+            update_ticket_status(self.tickets, "T001", "paused")
+
+
+class WorkQueueTests(unittest.TestCase):
+    def setUp(self):
+        self.tickets = []
+
+        self.low_ticket = create_ticket(
+            self.tickets,
+            "Replace mouse batteries",
+            "Hardware",
+            "low",
+            1,
+        )
+        self.high_ticket = create_ticket(
+            self.tickets,
+            "Lecture hall Wi-Fi is unstable",
+            "Network",
+            "high",
+            2,
+        )
+        self.critical_ticket = create_ticket(
+            self.tickets,
+            "Campus network outage",
+            "Network",
+            "high",
+            50,
+        )
+        self.resolved_ticket = create_ticket(
+            self.tickets,
+            "Install approved software",
+            "Software",
+            "medium",
+            2,
+        )
+
+        update_ticket_status(self.tickets, "T004", "in_progress")
+        update_ticket_status(self.tickets, "T004", "resolved")
+
+    def test_work_queue_lists_active_tickets_by_priority(self):
+        queue = get_work_queue(self.tickets)
+
+        self.assertEqual(
+            [ticket["id"] for ticket in queue],
+            ["T003", "T002", "T001"],
+        )
+
+class TicketReportTests(unittest.TestCase):
+    def setUp(self):
+        self.tickets = []
+
+        create_ticket(
+            self.tickets,
+            "Replace mouse batteries",
+            "Hardware",
+            "low",
+            1,
+        )
+        high_ticket = create_ticket(
+            self.tickets,
+            "Lecture hall Wi-Fi is unstable",
+            "Network",
+            "high",
+            2,
+        )
+        create_ticket(
+            self.tickets,
+            "Campus network outage",
+            "Network",
+            "high",
+            50,
+        )
+        resolved_ticket = create_ticket(
+            self.tickets,
+            "Install approved software",
+            "Software",
+            "medium",
+            2,
+        )
+
+        assign_ticket(self.tickets, high_ticket["id"], "Ada Lovelace")
+        update_ticket_status(
+            self.tickets,
+            resolved_ticket["id"],
+            "in_progress",
+        )
+        update_ticket_status(
+            self.tickets,
+            resolved_ticket["id"],
+            "resolved",
+        )
+
+    def test_report_summarises_tickets(self):
+        report = build_ticket_report(self.tickets)
+
+        self.assertEqual(report["total"], 4)
+        self.assertEqual(
+            report["by_status"],
+            {
+                "open": 3,
+                "in_progress": 0,
+                "resolved": 1,
+                "closed": 0,
+            },
+        )
+        self.assertEqual(
+            report["by_priority"],
+            {
+                "critical": 1,
+                "high": 1,
+                "medium": 1,
+                "low": 1,
+            },
+        )
+        self.assertEqual(report["assigned"], 1)
+        self.assertEqual(report["unassigned"], 3)
 
 if __name__ == "__main__":
     unittest.main()

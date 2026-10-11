@@ -1,2 +1,12 @@
-# campusflow-l2e
-A python command line helpdesk ticket manager for campus technical support
+# CampusFlow
+
+CampusFlow is a Python command-line helpdesk ticket manager for campus technical-support requests. It records tickets, calculates priority, assigns staff, tracks status, produces reports, and saves tickets to JSON.
+
+## Team
+
+- Engineer A: Salifu Nathan
+- Engineer B: To be added
+
+## Sprint goal
+
+Build and test a reliable command-line ticket-management application using Python, GitHub, automated tests, and professional pull-request review.

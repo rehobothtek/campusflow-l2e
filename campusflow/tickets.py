@@ -104,8 +104,7 @@ def assign_ticket(tickets, ticket_id, staff_name):
 ALLOWED_STATUS_TRANSITIONS = {
     "open": {"in_progress"},
     "in_progress": {"resolved"},
-    "resolved": {"in_progress", "closed"},
-    "closed": set(),
+    "resolved": set(),
 }
 
 
@@ -116,10 +115,13 @@ def update_ticket_status(tickets, ticket_id, new_status):
     normalised_status = new_status.strip().lower()
 
     if normalised_status not in ALLOWED_STATUS_TRANSITIONS:
-        raise ValueError("Status must be open, in_progress, resolved, or closed.")
+        raise ValueError("Status must be open, in_progress, or resolved.")
 
     ticket = find_ticket(tickets, ticket_id)
     current_status = ticket["status"]
+
+    if normalised_status == "in_progress" and not ticket.get("assigned_to"):
+        raise ValueError("A ticket must be assigned before work can start.")
 
     if normalised_status not in ALLOWED_STATUS_TRANSITIONS[current_status]:
         raise ValueError(
@@ -130,6 +132,16 @@ def update_ticket_status(tickets, ticket_id, new_status):
     return ticket
 
 
+def reopen_ticket(tickets, ticket_id):
+    ticket = find_ticket(tickets, ticket_id)
+
+    if ticket["status"] != "resolved":
+        raise ValueError("Only resolved tickets can be reopened.")
+
+    ticket["status"] = "open"
+    return ticket
+
+
 PRIORITY_ORDER = {
     "critical": 0,
     "high": 1,
@@ -137,21 +149,21 @@ PRIORITY_ORDER = {
     "low": 3,
 }
 
-ACTIVE_STATUSES = {"open", "in_progress"}
-
-
 def get_work_queue(tickets):
-    active_tickets = [
+    open_tickets = [
         ticket
         for ticket in tickets
-        if ticket.get("status") in ACTIVE_STATUSES
+        if ticket.get("status") == "open"
     ]
 
     return sorted(
-        active_tickets,
+        open_tickets,
         key=lambda ticket: (
             PRIORITY_ORDER.get(ticket.get("priority"), len(PRIORITY_ORDER)),
-            str(ticket.get("id", "")),
+            int(str(ticket.get("id", ""))[1:])
+            if str(ticket.get("id", "")).startswith("T")
+            and str(ticket.get("id", ""))[1:].isdigit()
+            else float("inf"),
         ),
     )
 
@@ -160,7 +172,6 @@ def build_ticket_report(tickets):
         "open": 0,
         "in_progress": 0,
         "resolved": 0,
-        "closed": 0,
     }
     by_priority = {
         "critical": 0,

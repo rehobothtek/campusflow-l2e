@@ -6,6 +6,7 @@ from campusflow.tickets import (
     calculate_priority,
     create_ticket,
     get_work_queue,
+    reopen_ticket,
     update_ticket_status,
 )
 
@@ -135,54 +136,50 @@ class StatusWorkflowTests(unittest.TestCase):
             5,
         )
 
-    def test_open_ticket_can_move_to_in_progress(self):
-        updated_ticket = update_ticket_status(
-            self.tickets,
-            "T001",
-            "in_progress",
-        )
+    def start_work(self):
+        assign_ticket(self.tickets, "T001", "Ada Lovelace")
+        return update_ticket_status(self.tickets, "T001", "in_progress")
+
+    def test_open_ticket_requires_assignment_before_work_can_start(self):
+        with self.assertRaises(ValueError):
+            update_ticket_status(self.tickets, "T001", "in_progress")
+
+    def test_assigned_open_ticket_can_move_to_in_progress(self):
+        updated_ticket = self.start_work()
 
         self.assertIs(updated_ticket, self.ticket)
         self.assertEqual(updated_ticket["status"], "in_progress")
 
     def test_in_progress_ticket_can_move_to_resolved(self):
-        update_ticket_status(self.tickets, "T001", "in_progress")
+        self.start_work()
 
         updated_ticket = update_ticket_status(self.tickets, "T001", "resolved")
 
         self.assertEqual(updated_ticket["status"], "resolved")
 
-    def test_resolved_ticket_can_move_to_closed(self):
-        update_ticket_status(self.tickets, "T001", "in_progress")
+    def test_resolved_ticket_can_be_explicitly_reopened_to_open(self):
+        self.start_work()
         update_ticket_status(self.tickets, "T001", "resolved")
 
-        updated_ticket = update_ticket_status(self.tickets, "T001", "closed")
+        updated_ticket = reopen_ticket(self.tickets, "T001")
 
-        self.assertEqual(updated_ticket["status"], "closed")
+        self.assertEqual(updated_ticket["status"], "open")
 
-    def test_resolved_ticket_can_be_reopened(self):
-        update_ticket_status(self.tickets, "T001", "in_progress")
+    def test_resolved_ticket_cannot_move_directly_to_in_progress(self):
+        self.start_work()
         update_ticket_status(self.tickets, "T001", "resolved")
 
-        updated_ticket = update_ticket_status(
-            self.tickets,
-            "T001",
-            "in_progress",
-        )
-
-        self.assertEqual(updated_ticket["status"], "in_progress")
+        with self.assertRaises(ValueError):
+            update_ticket_status(self.tickets, "T001", "in_progress")
 
     def test_open_ticket_cannot_skip_to_resolved(self):
         with self.assertRaises(ValueError):
             update_ticket_status(self.tickets, "T001", "resolved")
 
-    def test_closed_ticket_cannot_be_changed(self):
-        update_ticket_status(self.tickets, "T001", "in_progress")
-        update_ticket_status(self.tickets, "T001", "resolved")
-        update_ticket_status(self.tickets, "T001", "closed")
-
+    def test_only_resolved_ticket_can_be_reopened(self):
         with self.assertRaises(ValueError):
-            update_ticket_status(self.tickets, "T001", "in_progress")
+            reopen_ticket(self.tickets, "T001")
+
 
     def test_invalid_status_is_rejected(self):
         with self.assertRaises(ValueError):
@@ -200,7 +197,7 @@ class WorkQueueTests(unittest.TestCase):
             "low",
             1,
         )
-        self.high_ticket = create_ticket(
+        self.in_progress_ticket = create_ticket(
             self.tickets,
             "Lecture hall Wi-Fi is unstable",
             "Network",
@@ -222,16 +219,29 @@ class WorkQueueTests(unittest.TestCase):
             2,
         )
 
+        assign_ticket(self.tickets, "T002", "Ada Lovelace")
+        update_ticket_status(self.tickets, "T002", "in_progress")
+        assign_ticket(self.tickets, "T004", "Ada Lovelace")
         update_ticket_status(self.tickets, "T004", "in_progress")
         update_ticket_status(self.tickets, "T004", "resolved")
 
-    def test_work_queue_lists_active_tickets_by_priority(self):
+    def test_work_queue_lists_only_open_tickets_by_priority(self):
         queue = get_work_queue(self.tickets)
 
         self.assertEqual(
             [ticket["id"] for ticket in queue],
-            ["T003", "T002", "T001"],
+            ["T003", "T001"],
         )
+
+    def test_work_queue_uses_numeric_ticket_id_as_tie_breaker(self):
+        tickets = [
+            {"id": "T010", "priority": "high", "status": "open"},
+            {"id": "T002", "priority": "high", "status": "open"},
+        ]
+
+        queue = get_work_queue(tickets)
+
+        self.assertEqual([ticket["id"] for ticket in queue], ["T002", "T010"])
 
 class TicketReportTests(unittest.TestCase):
     def setUp(self):
@@ -267,6 +277,7 @@ class TicketReportTests(unittest.TestCase):
         )
 
         assign_ticket(self.tickets, high_ticket["id"], "Ada Lovelace")
+        assign_ticket(self.tickets, resolved_ticket["id"], "Grace Hopper")
         update_ticket_status(
             self.tickets,
             resolved_ticket["id"],
@@ -288,7 +299,6 @@ class TicketReportTests(unittest.TestCase):
                 "open": 3,
                 "in_progress": 0,
                 "resolved": 1,
-                "closed": 0,
             },
         )
         self.assertEqual(
@@ -300,8 +310,8 @@ class TicketReportTests(unittest.TestCase):
                 "low": 1,
             },
         )
-        self.assertEqual(report["assigned"], 1)
-        self.assertEqual(report["unassigned"], 3)
+        self.assertEqual(report["assigned"], 2)
+        self.assertEqual(report["unassigned"], 2)
 
 if __name__ == "__main__":
     unittest.main()

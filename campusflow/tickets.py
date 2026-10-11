@@ -7,15 +7,29 @@ ALLOWED_CATEGORIES = {
 
 ALLOWED_URGENCIES = {"low", "medium", "high"}
 
-
 def calculate_priority(urgency, affected_users):
-    if urgency == "high" and affected_users >= 10:
+    if not isinstance(urgency, str):
+        raise ValueError("Urgency must be low, medium, or high.")
+
+    normalised_urgency = urgency.strip().lower()
+
+    if normalised_urgency not in ALLOWED_URGENCIES:
+        raise ValueError("Urgency must be low, medium, or high.")
+
+    if (
+        isinstance(affected_users, bool)
+        or not isinstance(affected_users, int)
+        or affected_users <= 0
+    ):
+        raise ValueError("Affected users must be a positive integer.")
+
+    if normalised_urgency == "high" and affected_users >= 10:
         return "critical"
 
-    if urgency == "high" or affected_users >= 10:
+    if normalised_urgency == "high" or affected_users >= 10:
         return "high"
 
-    if urgency == "medium" or affected_users >= 3:
+    if normalised_urgency == "medium" or affected_users >= 3:
         return "medium"
 
     return "low"

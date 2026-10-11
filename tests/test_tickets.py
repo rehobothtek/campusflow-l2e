@@ -20,6 +20,14 @@ class CalculatePriorityTests(unittest.TestCase):
         result = calculate_priority("low", 1)
         self.assertEqual(result, "low")
 
+    def test_invalid_urgency_is_rejected(self):
+        with self.assertRaises(ValueError):
+            calculate_priority("urgent", 1)
+
+    def test_invalid_affected_users_is_rejected(self):
+        with self.assertRaises(ValueError):
+            calculate_priority("low", "three")
+
 
 class CreateTicketTests(unittest.TestCase):
     def setUp(self):

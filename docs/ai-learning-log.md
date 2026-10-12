@@ -63,3 +63,68 @@
 **Related file/commit:** `campusflow/tickets.py` and `tests/test_tickets.py`; feature commit follows.
 
 **What I can now explain without AI:** The `isinstance` guard makes the function skip malformed records instead of crashing.
+
+
+## Fellow: Apochi Favour
+
+### Interaction #1 — Defining ticket assignment with a test first
+
+**Problem:** I needed to add ticket assignment without changing Engineer A's ticket-creation behavior.
+
+**My initial understanding:** Assignment should find an existing ticket, store a staff member's name, and leave the ticket status unchanged.
+
+**Prompt to AI:** I asked how to define a small automated test before implementing ticket assignment.
+
+**Useful AI guidance:** Write a test that creates a ticket, assigns a staff member with surrounding spaces, and checks that the stored name is cleaned.
+
+**My independent experiment:** I ran the new test before adding `assign_ticket`. It failed because the function did not exist, then passed after I implemented ticket lookup and assignment.
+
+**Verification source or result:** `python -m unittest discover -s tests -v` passed after the implementation, including tests for blank staff names and unknown ticket IDs.
+
+**Decision:** Accepted. I used test-first development for assignment and kept the function separate from ticket creation.
+
+**Related file/commit:** `campusflow/tickets.py`, `tests/test_tickets.py`; Engineer B feature commit `239ae25`.
+
+**What I can now explain without AI:** A small failing test can specify exactly what one new function must do before implementation begins.
+
+
+### Interaction #2 — Improving the workflow after pull-request review
+
+**Problem:** My initial workflow included an extra `closed` status and allowed a resolved ticket to move directly back to `in_progress`.
+
+**My initial understanding:** I thought a closed status and direct restart were reasonable options for ticket handling.
+
+**Prompt to AI:** I asked how to update the workflow after the reviewer required `open → in_progress → resolved`, assignment before work starts, and an explicit reopen step.
+
+**Useful AI guidance:** Use a separate reopening function and add tests for every permitted and rejected transition.
+
+**My independent experiment:** I updated the implementation so only an assigned open ticket can move to `in_progress`, removed `closed`, and made reopening change only `resolved` tickets back to `open`.
+
+**Verification source or result:** The updated suite passed 26 tests, including direct-reopen rejection and assignment-before-work checks.
+
+**Decision:** Improved the original design after review. I removed the extra status and required an explicit reopen operation.
+
+**Related file/commit:** `campusflow/tickets.py`, `tests/test_tickets.py`; review-fix commit `e7af6a1`.
+
+**What I can now explain without AI:** A review comment can reveal that a feature works technically but does not match the agreed workflow, so both code and tests must change.
+
+
+### Interaction #3 — Ordering a work queue predictably
+
+**Problem:** The work queue needed a deterministic order when tickets had the same priority.
+
+**My initial understanding:** Sorting ticket IDs as text seemed sufficient.
+
+**Prompt to AI:** I asked how to sort the open queue first by priority and then by ticket ID.
+
+**Useful AI guidance:** Use an explicit priority-order mapping and add a tie-breaker test.
+
+**My independent experiment:** I compared `T010` and `T002` with the same priority. I corrected the tie-breaker to use the numeric part of the ticket ID so `T002` comes first.
+
+**Verification source or result:** The automated test `test_work_queue_uses_numeric_ticket_id_as_tie_breaker` passes in the final test suite.
+
+**Decision:** Improved the initial approach by using numeric rather than text ticket-ID ordering.
+
+**Related file/commit:** `campusflow/tickets.py`, `tests/test_tickets.py`; review-fix commit `e7af6a1`.
+
+**What I can now explain without AI:** Text sorting can place `T010` before `T002`, so numeric ticket values are needed for a natural queue order.

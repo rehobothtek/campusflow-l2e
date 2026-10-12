@@ -5,7 +5,7 @@ CampusFlow is a Python command-line helpdesk ticket manager for campus technical
 ## Team
 
 - Engineer A: Salifu Nathan
-- Engineer B: Apochi Favour
+- Engineer B: Apochi Favour — implemented ticket lookup, assignment, status workflow and reopening, the work queue, reports, and their automated tests; reviewed and addressed pull-request feedback.
 
 ## Sprint goal
 
